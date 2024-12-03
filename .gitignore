@@ -1,0 +1,8 @@
+electron.exe
+*.exe
+*.dmg
+*.app
+*.asar
+*.zip
+*.AppImage
+dist
