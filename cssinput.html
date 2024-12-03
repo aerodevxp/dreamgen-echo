@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Input Dialog</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+      input {
+        width: 80%;
+        height: 80%;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Enter your text:</h3>
+    <input type="text" id="userInput" placeholder="Type your CSS here!" />
+    <br />
+    <button id="submitBtn">Submit</button>
+
+    <script>
+      const { ipcRenderer } = require('electron');
+
+      document.getElementById('submitBtn').addEventListener('click', () => {
+        const userInput = document.getElementById('userInput').value;
+        ipcRenderer.send('input-received', userInput);
+        window.close(); // Close the dialog when submitted
+      });
+    </script>
+  </body>
+</html>

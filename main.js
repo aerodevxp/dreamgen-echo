@@ -1,8 +1,18 @@
 const { app, BrowserWindow, dialog, screen, Menu, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const config = require('./config/settings.json');
 
 let mainWindow;
 let menuBarVisible = true;
+let cssMods = {
+    "theme" : [true, config['CSSMODS']['themes'][config['currentTheme']]],
+    "betterScaling" : [config['isBetterScaling'], config['CSSMODS']['betterScaling']]
+}
+
+
+// Window Creation
+//====================
 
 const menuTemplate = [
     {
@@ -74,17 +84,102 @@ const menuTemplate = [
     },
     {
         label: 'Style',
-        submenu :[
+        submenu: [
             {
-                label: 'Toggle Custom CSS',
-                click: () => {
-                    dialog.showMessageBox(mainWindow, {
-                        type: 'warning',
-                        buttons: ['Okay :)!'],
-                        title: 'Not Finished',
-                        message: 'This feature is will a WIP! Please stay tuned for the next update on GitHub.'
-                      });
-                }
+                label: 'Custom CSS',
+                submenu: [
+                    {
+                        label: 'Toggle Custom CSS',
+                        type: 'checkbox',
+                        checked: config['isCustomCSS'],
+                        click: (menuItem) => {
+                            config.isCustomCSS = menuItem.checked;
+                            mainWindow.reload();
+                        }
+                    },
+                    {
+                        label: 'Edit Custom CSS',
+                        checked: config['isCustomCSS'],
+                        click: (menuItem) => {
+                            //open input box
+                            const editCSSWindow = new BrowserWindow({
+                                width: 600,
+                                height: 400,
+                                parent: mainWindow,
+                                modal: true,
+                                show: false,
+                                webPreferences: {
+                                    nodeIntegration: true,
+                                    contextIsolation: false,
+                                }
+                            });
+
+                            editCSSWindow.loadFile('./cssinput.html');
+
+                            editCSSWindow.once('ready-to-show', () => {
+                                editCSSWindow.show();
+                            });
+
+                            ipcMain.once('custom-css-submitted', (event, css) => {
+                                config.customCSS = css;
+                                editCSSWindow.close();
+                                mainWindow.reload();
+                            });
+                        }
+                        
+                    }
+                ]
+            },
+          
+            {
+                label: 'Themes',
+                submenu:[
+                    {
+                        label: 'Default',
+                        type: 'radio',
+                        checked: config["currentTheme"] == 0,
+                        click: () => {
+                            config['currentTheme'] = 0;
+                            cssMods['theme'] = [true, config['CSSMODS']['themes'][config['currentTheme']]];
+                            mainWindow.reload();
+                        }
+                    },
+                    {
+                        label: 'Lavender',
+                        type: 'radio',
+                        checked: config["currentTheme"] == 1,
+                        click: () => {
+                            config['currentTheme'] = 1;
+                            cssMods['theme'] = [true, config['CSSMODS']['themes'][config['currentTheme']]];
+                            mainWindow.reload();
+                        }
+                    },
+                    {
+                        label: 'High Contrast',
+                        type: 'radio',
+                        checked: config["currentTheme"] == 2,
+                        click: () => {
+                            config['currentTheme'] = 2;
+                            cssMods['theme'] = [true, config['CSSMODS']['themes'][config['currentTheme']]];
+                            mainWindow.reload();
+                        }
+                    }
+                ]
+            },
+            {
+                label: 'Little Fixes',
+                submenu:[
+                    {
+                        label: 'Scaling Fixes for RP/Sandbox',
+                        type: 'checkbox',
+                        checked: cssMods['betterScaling'][0],
+                        click: (menuItem) => {
+                            config['isBetterScaling'] = menuItem.checked;
+                            cssMods['betterScaling'][0] = menuItem.checked;
+                            mainWindow.reload();
+                        }
+                    }
+                ]
             }
         ]
     }
@@ -111,8 +206,14 @@ function createWindow() {
     mainWindow.setMenuBarVisibility(true);
 
     mainWindow.loadURL('https://dreamgen.com/app/');
-    
+    injectCustomCSS();
     mainWindow.on('closed', () => {
+        try {
+            fs.writeFileSync('./config/settings.json', JSON.stringify(config, null, 2), 'utf-8');
+            console.log('Config updated successfully');
+          } catch (err) {
+            console.error('Error writing config file:', err);
+          }
         mainWindow = null;
     });
 }
@@ -152,3 +253,21 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// Functions for features
+//====================
+
+//Inject Custom CSS
+function injectCustomCSS(){
+    let custom_css = config['customCSS']
+    mainWindow.webContents.on('did-finish-load', () => {
+        if(config.isCustomCSS){
+            mainWindow.webContents.insertCSS(custom_css);
+            console.log('Loading Custom CSS...');
+        }
+        Object.entries(cssMods).forEach(mod => {
+            if (mod[1][0]){mainWindow.webContents.insertCSS(mod[1][1]);}
+            console.log(`Inserting ${mod[0]} CSS!`);
+        });
+    });
+}
